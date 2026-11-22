@@ -1,89 +1,120 @@
-// src/App.jsx
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import Navbar from './components/Navbar';
+import Home from './components/Home';
+import Login from './components/Login';
+import AgendarCitaModal from './components/AgendarCitaModal';
 
 export default function App() {
   const [negocio, setNegocio] = useState(null);
   const [servicios, setServicios] = useState([]);
-  const [form, setForm] = useState({
-    nombre_cliente: '',
-    nombre_mascota: '',
-    fecha: '',
-    hora: '09:00',
-  });
-  const [estadoEnvio, setEstadoEnvio] = useState('');
+  const [citas, setCitas] = useState([]);
+  const [user, setUser] = useState(null);
+  const [vista, setVista] = useState('home');
+  const [modalCitaOpen, setModalCitaOpen] = useState(false);
 
-  useEffect(() => {
-    fetch('/api/home-data')
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.success) {
-          setNegocio(data.negocio);
-          setServicios(data.servicios);
-        }
-      })
-      .catch(() => setEstadoEnvio('No se pudo cargar /api/home-data'));
+  const cargarHomeData = useCallback(async () => {
+    try {
+      const res = await fetch('/api/home-data');
+      const data = await res.json();
+      if (data.success) {
+        setNegocio(data.negocio);
+        setServicios(data.servicios || []);
+      }
+    } catch (err) {
+      console.error('Error al cargar /api/home-data:', err);
+    }
   }, []);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setEstadoEnvio('Enviando...');
+  const cargarCitas = useCallback(async () => {
     try {
-      const res = await fetch('/api/citas', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
-      });
+      const res = await fetch('/api/citas');
       const data = await res.json();
-      setEstadoEnvio(data.success ? `✅ ${data.message}` : `❌ ${data.message}`);
-    } catch {
-      setEstadoEnvio('❌ Error de red al llamar a /api/citas');
+      if (data.success) {
+        setCitas(data.citas || []);
+      }
+    } catch (err) {
+      console.error('Error al cargar /api/citas:', err);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    cargarHomeData();
+    cargarCitas();
+  }, [cargarHomeData, cargarCitas]);
 
   return (
-    <main style={{ maxWidth: 720, margin: '40px auto', fontFamily: 'sans-serif', padding: '0 16px' }}>
-      <h1>{negocio?.nombre || 'PawsApp'}</h1>
-      <p>{negocio?.slogan || 'Cargando...'}</p>
+    <div className="app-shell">
+      <Navbar
+        negocio={negocio}
+        user={user}
+        vista={vista}
+        setVista={setVista}
+        onLogout={() => {
+          setUser(null);
+          setVista('home');
+        }}
+        onOpenCita={() => setModalCitaOpen(true)}
+      />
 
-      <h2>Servicios</h2>
-      <ul>
-        {servicios.map((s) => (
-          <li key={s.id}>
-            {s.nombre} — ${s.precio} ({s.duracion_estimada} min)
-          </li>
-        ))}
-      </ul>
+      <main>
+        {vista === 'home' && (
+          <Home
+            negocio={negocio}
+            servicios={servicios}
+            user={user}
+            onOpenCita={() => setModalCitaOpen(true)}
+            onRefreshData={cargarHomeData}
+          />
+        )}
 
-      <h2>Agendar cita rápida</h2>
-      <form onSubmit={handleSubmit} style={{ display: 'grid', gap: 10, maxWidth: 380 }}>
-        <input
-          placeholder="Tu nombre"
-          value={form.nombre_cliente}
-          onChange={(e) => setForm({ ...form, nombre_cliente: e.target.value })}
-          required
-        />
-        <input
-          placeholder="Nombre de la mascota"
-          value={form.nombre_mascota}
-          onChange={(e) => setForm({ ...form, nombre_mascota: e.target.value })}
-          required
-        />
-        <input
-          type="date"
-          value={form.fecha}
-          onChange={(e) => setForm({ ...form, fecha: e.target.value })}
-          required
-        />
-        <input
-          type="time"
-          value={form.hora}
-          onChange={(e) => setForm({ ...form, hora: e.target.value })}
-          required
-        />
-        <button type="submit">Confirmar cita</button>
-      </form>
+        {vista === 'login' && (
+          <Login
+            onLoginSuccess={(loggedUser) => {
+              setUser(loggedUser);
+              setVista('home');
+            }}
+            onCancel={() => setVista('home')}
+          />
+        )}
 
-      {estadoEnvio && <p style={{ marginTop: 12 }}>{estadoEnvio}</p>}
-    </main>
+        {vista === 'citas' && (
+          <section className="citas-container">
+            <div className="citas-header">
+              <h2 className="section-title" style={{ margin: 0 }}>
+                Citas Registradas
+              </h2>
+              <button type="button" onClick={() => setModalCitaOpen(true)} className="btn-primary">
+                + Nueva Cita
+              </button>
+            </div>
+
+            {citas.length === 0 ? (
+              <div className="card-box muted-text">
+                Aún no hay citas agendadas en esta sesión.
+              </div>
+            ) : (
+              <div className="citas-list">
+                {citas.map((cita) => (
+                  <div key={cita.id} className="cita-item">
+                    <div>
+                      <strong>Cita #{cita.id}</strong> — <span>{cita.fecha_hora_inicio}</span>
+                    </div>
+                    <span className="badge-pending">{cita.estado}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
+      </main>
+
+      <AgendarCitaModal
+        open={modalCitaOpen}
+        onClose={() => setModalCitaOpen(false)}
+        servicios={servicios}
+        user={user}
+        onCitaCreada={() => cargarCitas()}
+      />
+    </div>
   );
 }
