@@ -18,7 +18,9 @@ export default function Navbar({ negocio, user, vista, setVista, onLogout, secci
       <div className="navbar-inner">
         <button type="button" onClick={() => irA('home')} className="brand-btn">
           <div className="brand-logo-circle">
-            {negocio?.logo_url && negocio.logo_url.startsWith('data:image') ? (
+            {negocio?.logo_url &&
+            (negocio.logo_url.startsWith('data:image') ||
+              negocio.logo_url.startsWith('http')) ? (
               <img src={negocio.logo_url} alt="Logo" />
             ) : (
               <span>🐾</span>
