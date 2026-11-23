@@ -1,11 +1,17 @@
 import { useState } from 'react';
 
-export default function Login({ onLoginSuccess, onCancel }) {
+export default function Login({ aviso, onLoginSuccess, onCancel }) {
+  const [modoRegistro, setModoRegistro] = useState(false);
   const [nombre, setNombre] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const alternarModo = () => {
+    setModoRegistro((prev) => !prev);
+    setError('');
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -16,12 +22,20 @@ export default function Login({ onLoginSuccess, onCancel }) {
       const res = await fetch('/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nombre, email, password }),
+        body: JSON.stringify({
+          nombre,
+          email,
+          password,
+          modo: modoRegistro ? 'registro' : 'login',
+        }),
       });
       const data = await res.json();
 
       if (!res.ok || !data.success) {
-        setError(data.message || 'No se pudo iniciar sesión.');
+        setError(
+          data.message ||
+            (modoRegistro ? 'No se pudo crear la cuenta.' : 'No se pudo iniciar sesión.')
+        );
       } else {
         onLoginSuccess(data.user);
       }
@@ -35,22 +49,33 @@ export default function Login({ onLoginSuccess, onCancel }) {
   return (
     <div className="card-box login-card">
       <h2 className="section-title" style={{ marginBottom: 4 }}>
-        Iniciar Sesión
+        {modoRegistro ? 'Crear Cuenta' : 'Iniciar Sesión'}
       </h2>
-      <p className="muted-text" style={{ marginTop: 0, marginBottom: 18 }}>
-        Usa <code>admin@pawsapp.com</code> o entra con cualquier correo.
+      <p className="muted-text" style={{ marginTop: 0, marginBottom: 14 }}>
+        {modoRegistro
+          ? 'Registra tus datos para agendar citas en PawsApp.'
+          : 'Usa admin@pawsapp.com o entra con tu cuenta registrada.'}
       </p>
 
-      <form onSubmit={handleSubmit} className="form-stack">
-        <div className="field-group">
-          <label className="field-label">Nombre (opcional si ya existe)</label>
-          <input
-            value={nombre}
-            onChange={(e) => setNombre(e.target.value)}
-            className="field-input"
-            placeholder="Tu nombre"
-          />
+      {aviso && (
+        <div className="alert-error" style={{ marginBottom: 14 }}>
+          {aviso}
         </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="form-stack">
+        {modoRegistro && (
+          <div className="field-group">
+            <label className="field-label">Nombre completo *</label>
+            <input
+              value={nombre}
+              onChange={(e) => setNombre(e.target.value)}
+              required={modoRegistro}
+              className="field-input"
+              placeholder="Ej. María López"
+            />
+          </div>
+        )}
 
         <div className="field-group">
           <label className="field-label">Correo electrónico *</label>
@@ -60,7 +85,7 @@ export default function Login({ onLoginSuccess, onCancel }) {
             onChange={(e) => setEmail(e.target.value)}
             required
             className="field-input"
-            placeholder="admin@pawsapp.com"
+            placeholder="correo@ejemplo.com"
           />
         </div>
 
@@ -82,10 +107,32 @@ export default function Login({ onLoginSuccess, onCancel }) {
           <button type="button" onClick={onCancel} className="btn-secondary">
             Volver
           </button>
-          <button type="submit" disabled={loading} className="btn-primary">
-            {loading ? 'Entrando...' : 'Continuar'}
+          <button type="submit" disabled={loading} className="btn-coral">
+            {loading
+              ? 'Procesando...'
+              : modoRegistro
+                ? 'Crear cuenta'
+                : 'Continuar'}
           </button>
         </div>
+
+        <p className="auth-switch-text">
+          {modoRegistro ? (
+            <>
+              ¿Ya tienes usuario?{' '}
+              <button type="button" onClick={alternarModo} className="auth-switch-link">
+                Iniciar sesión
+              </button>
+            </>
+          ) : (
+            <>
+              ¿No tienes usuario?{' '}
+              <button type="button" onClick={alternarModo} className="auth-switch-link">
+                Crear cuenta
+              </button>
+            </>
+          )}
+        </p>
       </form>
     </div>
   );

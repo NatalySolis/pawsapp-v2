@@ -10,7 +10,10 @@ export default function App() {
   const [citas, setCitas] = useState([]);
   const [user, setUser] = useState(null);
   const [vista, setVista] = useState('home');
+  const [seccionActiva, setSeccionActiva] = useState('home');
   const [modalCitaOpen, setModalCitaOpen] = useState(false);
+  const [pendienteAbrirCita, setPendienteAbrirCita] = useState(false);
+  const [avisoAuth, setAvisoAuth] = useState('');
 
   const cargarHomeData = useCallback(async () => {
     try {
@@ -42,18 +45,35 @@ export default function App() {
     cargarCitas();
   }, [cargarHomeData, cargarCitas]);
 
+  const solicitarAgendarCita = () => {
+    if (!user) {
+      setPendienteAbrirCita(true);
+      setAvisoAuth('Debes iniciar sesión para poder agendar una cita.');
+      setVista('login');
+      return;
+    }
+    setAvisoAuth('');
+    setModalCitaOpen(true);
+  };
+
   return (
     <div className="app-shell">
       <Navbar
         negocio={negocio}
         user={user}
         vista={vista}
-        setVista={setVista}
+        setVista={(nuevaVista) => {
+          if (nuevaVista === 'login') setAvisoAuth('');
+          setVista(nuevaVista);
+        }}
+        seccionActiva={seccionActiva}
+        setSeccionActiva={setSeccionActiva}
         onLogout={() => {
           setUser(null);
+          setModalCitaOpen(false);
+          setPendienteAbrirCita(false);
           setVista('home');
         }}
-        onOpenCita={() => setModalCitaOpen(true)}
       />
 
       <main>
@@ -62,18 +82,28 @@ export default function App() {
             negocio={negocio}
             servicios={servicios}
             user={user}
-            onOpenCita={() => setModalCitaOpen(true)}
+            onOpenCita={solicitarAgendarCita}
             onRefreshData={cargarHomeData}
           />
         )}
 
         {vista === 'login' && (
           <Login
+            aviso={avisoAuth}
             onLoginSuccess={(loggedUser) => {
               setUser(loggedUser);
+              setAvisoAuth('');
+              setVista('home');
+              if (pendienteAbrirCita) {
+                setPendienteAbrirCita(false);
+                setModalCitaOpen(true);
+              }
+            }}
+            onCancel={() => {
+              setPendienteAbrirCita(false);
+              setAvisoAuth('');
               setVista('home');
             }}
-            onCancel={() => setVista('home')}
           />
         )}
 
@@ -83,7 +113,7 @@ export default function App() {
               <h2 className="section-title" style={{ margin: 0 }}>
                 Citas Registradas
               </h2>
-              <button type="button" onClick={() => setModalCitaOpen(true)} className="btn-primary">
+              <button type="button" onClick={solicitarAgendarCita} className="btn-coral">
                 + Nueva Cita
               </button>
             </div>
@@ -109,7 +139,7 @@ export default function App() {
       </main>
 
       <AgendarCitaModal
-        open={modalCitaOpen}
+        open={modalCitaOpen && Boolean(user)}
         onClose={() => setModalCitaOpen(false)}
         servicios={servicios}
         user={user}

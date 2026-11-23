@@ -10,6 +10,7 @@ export default function handler(req, res) {
   }
 
   const {
+    usuario_id,
     nombre_cliente,
     telefono,
     correo,
@@ -22,15 +23,18 @@ export default function handler(req, res) {
     hora
   } = req.body || {};
 
-  if (!nombre_cliente || !nombre_mascota || !fecha || !hora) {
-    return res.status(400).json({ success: false, message: 'Faltan campos obligatorios' });
+  if (!nombre_cliente || !telefono || !nombre_mascota || !fecha || !hora) {
+    return res.status(400).json({
+      success: false,
+      message: 'Debes iniciar sesión y completar los campos obligatorios para agendar.'
+    });
   }
 
   const cliente = {
     id: Date.now(),
     negocio_id: 1,
     nombre_completo: nombre_cliente,
-    telefono: telefono || '',
+    telefono,
     correo: correo || null
   };
   store.clientes.push(cliente);
@@ -51,6 +55,7 @@ export default function handler(req, res) {
     negocio_id: 1,
     cliente_id: cliente.id,
     mascota_id: mascota.id,
+    usuario_id: usuario_id || null,
     servicio_id: servicio_id ? Number(servicio_id) : null,
     fecha_hora_inicio: `${fecha} ${hora}:00`,
     estado: 'PENDIENTE'
